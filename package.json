@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "framer-motion": "^12.4.7",
+    "lucide-react": "^0.476.0",
+    "react-select": "^5.10.1",
+    "recharts": "^2.15.1",
+    "swiper": "^11.2.4"
+  }
+}
