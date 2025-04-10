@@ -15,6 +15,7 @@ class VerifyCsrfToken extends Middleware
         //  
        
         'sanctum/csrf-cookie', // Wajib agar bisa login
+        'api/*', // ✅ tambahkan ini supaya semua route /api tidak dicek CSRF
  
     ];
 }

@@ -203,18 +203,19 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
               </div>
             )}
           </div>
-        </div>
-
-        {/* Menu label - only show when sidebar is open */}
-        {isOpen && (
-          <div className="px-4 pt-5 pb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 flex items-center">
-              <div className="h-px flex-grow bg-gradient-to-r from-transparent via-gray-600 to-transparent mr-2"></div>
-              Menu Utama
-              <div className="h-px flex-grow bg-gradient-to-r from-gray-600 via-transparent to-transparent ml-2"></div>
-            </span>
           </div>
-        )}
+
+{isOpen && (
+ <div className="px-4 pt-4">
+ {/* Bisa atur spacing di sini */}
+    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 flex items-center">
+      <div className="h-px flex-grow bg-gradient-to-r from-transparent via-gray-600 to-transparent mr-2"></div>
+      Menu Utama
+      <div className="h-px flex-grow bg-gradient-to-r from-gray-600 via-transparent to-transparent ml-2"></div>
+    </span>
+  </div>
+)}
+
 
         {/* Sidebar navigation */}
         <nav 
@@ -232,7 +233,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
                   expandedMenu === menu.id || activeItem === menu.path 
                     ? "bg-transparent text-blue-400 border-l-4 border-blue-500 shadow-md"
                     : "bg-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 hover:border-l-4 hover:border-blue-500/50"
-                }`}
+                }`} 
                 onClick={(e) => {
                   e.preventDefault();
                   if (menu.subMenu) {
@@ -457,10 +458,17 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
                 />
               </div>
               {/* User info */}
-              <div className="ml-3">
-                <p className="text-sm font-medium text-white truncate max-w-[150px]">{user.fullName}</p>
-                <p className="text-xs text-gray-400 truncate max-w-[150px]">{user.email}</p>
-              </div>
+              <div className="ml-3 w-[150px] min-w-0">
+
+              <p className="text-sm font-medium text-white leading-tight">
+  {user.fullName}
+</p>
+<p className="text-xs text-gray-400 leading-tight break-words">
+  {user.email}
+</p>
+
+</div>
+
             </div>
           </div>
         )}

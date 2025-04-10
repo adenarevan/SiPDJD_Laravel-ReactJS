@@ -133,3 +133,10 @@ button:focus-visible {
 body {
   font-family: var(--font-primary);
 }
+::-webkit-scrollbar {
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 3px;
+}

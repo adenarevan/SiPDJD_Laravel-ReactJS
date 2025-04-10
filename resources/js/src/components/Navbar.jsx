@@ -5,6 +5,7 @@ import Modal from "./Modal"; // Sesuaikan dengan path yang benar
 import Select from "react-select";
 import VerifikasiModal from "./VerifikasiModal"; // Import Modal
 import { apiFetch } from "../utils/api";
+import { webFetch } from "@/utils/webFetch";
 
 
 export default function Navbar({ toggleSidebar }) {

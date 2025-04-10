@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { FiX, FiChevronDown, FiCheckCircle, FiCalendar, FiArrowRight, FiSearch } from "react-icons/fi";
 import { FaCheckCircle, FaRoad, FaGlobeAsia, FaTree } from "react-icons/fa";
+import { getCookie } from "../utils/cookies";
+
 
 // ✅ Komponen MenuCard (Kartu untuk setiap menu)
-const MenuCard = ({ icon, title, description, color, years, menuId, isSelected, onSelect, onYearChange }) => {
+  const MenuCard = ({ icon, title, description, color, years, menuId, isSelected, onSelect, onYearChange }) => {
   const [selectedYear, setSelectedYear] = useState(() => localStorage.getItem(`selected_year_${menuId}`) || "2022");
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -18,43 +20,52 @@ const MenuCard = ({ icon, title, description, color, years, menuId, isSelected, 
     }
   }, [isSelected]);
 
+  const csrfToken = getCookie('XSRF-TOKEN');
 
+const handleYearChange = async (year) => {
+  if (year === selectedYear) return;
 
+  try {
+    // Ambil CSRF cookie
+    const csrfRes = await fetch("http://localhost:8000/sanctum/csrf-cookie", {
+      credentials: "include",
+    });
+    if (!csrfRes.ok) throw new Error("Gagal mendapatkan CSRF cookie");
 
-  const handleYearChange = async (year) => {
-    if (year === selectedYear) return;
+    const csrfToken = getCookie('XSRF-TOKEN');
 
-    setSelectedYear(year);
-    localStorage.setItem(`selected_year_${menuId}`, year); // Simpan tahun berdasarkan `menuID`
-    window.dispatchEvent(new Event("year_update")); // Kirim event agar sidebar update
-  
-    const token = localStorage.getItem("token");
+    // Kirim request set-year
+    const response = await fetch("http://localhost:8000/set-year", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "X-XSRF-TOKEN": csrfToken,
+      },
+      credentials: "include",
+      body: JSON.stringify({ menu_id: menuId, year }),
+    });
 
-    try {
-      const response = await fetch("http://localhost:8000/api/set-year", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "Accept": "application/json"
-        },
-        body: JSON.stringify({
-          menu_id: menuId,
-          year: year
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error("Gagal menyimpan tahun ke server");
-      }
-
-      console.log("Tahun berhasil disimpan:", await response.json());
-      onYearChange(menuId, year);
-    } catch (error) {
-      console.error("Error menyimpan tahun:", error);
+    if (!response.ok) {
+      throw new Error("Gagal menyimpan tahun ke server");
     }
-  };
 
+    // Kalau sukses, baru update local state dan storage
+    setSelectedYear(year);
+    localStorage.setItem(`selected_year_${menuId}`, year);
+    window.dispatchEvent(new Event("year_update"));
+
+    const result = await response.json();
+    console.log("Tahun berhasil disimpan:", result);
+
+    onYearChange(menuId, year);
+    window.location.reload();
+  } catch (error) {
+    console.error("Error menyimpan tahun:", error);
+  }
+};
+
+  
   return (
     <div
       className={`rounded-xl shadow-lg p-6 border-l-4 transition-all duration-300 cursor-pointer
@@ -217,7 +228,16 @@ const handleMenuSelect = (menuId) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {menuItems.filter(item => item.title.toLowerCase().includes(searchQuery.toLowerCase())).map(item => (
-            <MenuCard key={item.menuId} {...item} isSelected={selectedMenuId === item.menuId} onSelect={() => handleMenuSelect(item.menuId)} />
+            <MenuCard
+            key={item.menuId}
+            {...item}
+            isSelected={selectedMenuId === item.menuId}
+            onSelect={() => handleMenuSelect(item.menuId)}
+            onYearChange={(menuId, year) => {
+              console.log("✅ Tahun diubah:", menuId, year);
+              // Di sini kamu bisa trigger update global, fetch data, dll
+            }}
+          />
           ))}
         </div>
       </div>

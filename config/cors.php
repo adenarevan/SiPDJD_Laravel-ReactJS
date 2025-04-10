@@ -15,7 +15,20 @@ return [
     |
     */
 
-   'paths' => ['api/*', 'sanctum/csrf-cookie'], // ✅ Pastikan ada "sanctum/csrf-cookie"
+  'paths' => [
+  'api/*',                // untuk semua route dari api.php
+  'set-year',             // ⬅️ ini baru di web.php, jadi perlu didaftarkan
+  'get-year/*',           // ⬅️ kalau kamu ambil tahun juga
+  'sanctum/csrf-cookie',  // wajib untuk login/session
+  'data-sk',
+  'provinsi',
+  'kabkota',
+  'privilege',
+  'update-profile',
+  'upload-profile-image',
+  'change-password',
+],
+
     'allowed_methods' => ['*'],
     'allowed_origins' => ['http://localhost:5173','http://localhost:8000'], // ✅ HARUS ada
     'allowed_origins_patterns' => [],
