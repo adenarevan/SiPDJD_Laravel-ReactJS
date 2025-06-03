@@ -140,3 +140,7 @@ body {
   background-color: #ccc;
   border-radius: 3px;
 }
+.Select__menu-portal {
+  z-index: 9999 !important;
+  position: absolute !important;
+}

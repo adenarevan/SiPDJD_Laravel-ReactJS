@@ -17,7 +17,13 @@ import {
   FiMap,
   FiMapPin 
 } from "react-icons/fi";
+
+import { useAuth } from "@/context/AuthContext"; // pastikan ini sudah di atas
 import { useState, useEffect } from "react";
+
+import { webFetch } from "@/utils/webFetch";
+import { toast } from "react-toastify";
+
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
   const navigate = useNavigate();
@@ -26,7 +32,9 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   const [selectedMenu, setSelectedMenu] = useState(null);
   const [isDataTeknisOpen, setIsDataTeknisOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState("");
-  const [user, setUser] = useState({ fullName: "", email: "" });
+
+  const { user } = useAuth(); // gunakan data global
+
   const [expandedMenu, setExpandedMenu] = useState(null);
   const [expandedSetting, setExpandedSetting] = useState(false);
   const [activeItem, setActiveItem] = useState(window.location.pathname);
@@ -39,7 +47,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       const storedMenu = localStorage.getItem("selected_menu");
       const storedYear = storedMenu ? localStorage.getItem(`selected_year_${storedMenu}`) : "";
   
-      console.log(`📌 [Sidebar] Tahun diperbarui dari localStorage: ${storedYear}`);
+    //  console.log(`📌 [Sidebar] Tahun diperbarui dari localStorage: ${storedYear}`);
   
       setSelectedYear(storedYear || "");
     };
@@ -56,7 +64,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   useEffect(() => {
     const updateMenu = () => {
       const storedMenu = localStorage.getItem("selected_menu");
-      console.log("📌 [Sidebar] selected_menu dari localStorage:", storedMenu);
+     // console.log("📌 [Sidebar] selected_menu dari localStorage:", storedMenu);
   
       let newMenu = [
         { id: "dashboard", path: "/dashboard", icon: <FiHome />, title: "DASHBOARD" }
@@ -86,7 +94,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         }
       }
   
-      console.log("📌 [Sidebar] menuItems setelah update:", newMenu);
+    //  console.log("📌 [Sidebar] menuItems setelah update:", newMenu);
       setMenuItems(newMenu);
     };
   
@@ -116,7 +124,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
             images: parsedUser.images || "user_default.png",
           });
         } catch (error) {
-          console.error("❌ Gagal parsing user_data dari LocalStorage:", error);
+       //   console.error("❌ Gagal parsing user_data dari LocalStorage:", error);
         }
       }
     };
@@ -139,16 +147,27 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user_privilege");
-    localStorage.removeItem("user_data");
-  
-    window.dispatchEvent(new Event("storage"));
-    navigate("/");
-    window.location.reload();
-  };
 
+  const handleLogout = async () => {
+    try {
+      const res = await webFetch("logout", {
+        method: "POST",
+      });
+  
+      if (res?.success || res?.message === "Logged out") {
+        toast.success("🚪 Berhasil logout!");
+      } else {
+        toast.error("⚠️ Logout gagal. Silakan coba lagi.");
+      }
+    } catch (error) {
+      toast.error("❌ Terjadi kesalahan saat logout.");
+      console.error("Logout error:", error);
+    } finally {
+      sessionStorage.clear();
+      window.location.href = "/login"; // Paksa reload bersih
+    }
+  };
+  
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -442,36 +461,22 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
 
         {/* User profile section */}
         {isOpen && user && (
-          <div className="mt-auto p-4 border-t border-gray-700/50 bg-gradient-to-b from-gray-800/40 to-gray-900/60 backdrop-blur-sm">
-            <div className="flex items-center">
-              {/* User Avatar with glow effect */}
-              <div className="relative">
-                <div className="absolute inset-0 bg-blue-500 rounded-full blur-sm opacity-30 animate-pulse"></div>
-                <img
-                  src={`http://localhost:8000/storage/profile_images/${user.images}`}
-                  alt="User Avatar"
-                  className="relative w-10 h-10 rounded-full object-cover border-2 border-blue-500/50"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                  //       e.target.src = 'https://via.placeholder.com/40?text=User';
-                  }}
-                />
-              </div>
-              {/* User info */}
-              <div className="ml-3 w-[150px] min-w-0">
-
-              <p className="text-sm font-medium text-white leading-tight">
-  {user.fullName}
-</p>
-<p className="text-xs text-gray-400 leading-tight break-words">
-  {user.email}
-</p>
-
-</div>
-
-            </div>
-          </div>
-        )}
+  <div className="mt-auto p-4 border-t border-gray-700/50 bg-gradient-to-b from-gray-800/40 to-gray-900/60">
+    <div className="flex items-center">
+      <div className="relative">
+        <img
+          src={`https://sipdjd-laravel.test/storage/profile_images/${user.images || "user_default.png"}`}
+          alt="User Avatar"
+          className="w-10 h-10 rounded-full object-cover border-2 border-blue-500/50"
+        />
+      </div>
+      <div className="ml-3 w-[150px] min-w-0">
+        <p className="text-sm font-medium text-white leading-tight">{user.fullName}</p>
+        <p className="text-xs text-gray-400 leading-tight break-words">{user.email}</p>
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Logout button */}
         <div className={`p-3 border-t border-gray-700/50 bg-gradient-to-t from-gray-900/60 to-transparent ${isOpen ? "" : "flex justify-center"}`}>

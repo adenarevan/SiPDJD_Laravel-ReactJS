@@ -4,16 +4,18 @@ import { useNavigate } from "react-router-dom";
 import Modal from "./Modal"; // Sesuaikan dengan path yang benar
 import Select from "react-select";
 import VerifikasiModal from "./VerifikasiModal"; // Import Modal
-import { apiFetch } from "../utils/api";
+
 import { webFetch } from "@/utils/webFetch";
+import { toast } from "react-toastify";
+import { useAuth } from "@/context/AuthContext";
 
 
 export default function Navbar({ toggleSidebar }) {
-  const navigate = useNavigate();
+
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [user, setUser] = useState(null);
+
   const [formData, setFormData] = useState({});
   const [fields, setFields] = useState({ provinsi: [], kabkota: [] });
   const [imageSelected, setImageSelected] = useState(null);
@@ -23,6 +25,10 @@ export default function Navbar({ toggleSidebar }) {
   const [showUploadButton, setShowUploadButton] = useState(false);
 
   const [showVerifikasiModal, setShowVerifikasiModal] = useState(false);
+
+  const navigate = useNavigate();
+
+  const { user } = useAuth(); // Ambil langsung dari context
 
 //ubah password
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -74,12 +80,9 @@ const submitPasswordChange = () => {
 
   setLoading(true);
   
-  apiFetch("change-password", {
+  webFetch("change-password", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${localStorage.getItem("token")}`,
-    },
+
     body: JSON.stringify(passwordData),
   })
     .then((data) => {
@@ -100,44 +103,45 @@ const submitPasswordChange = () => {
 };
 
 
+
 useEffect(() => {
-  const token = localStorage.getItem("token");
+  console.log("User in navbar:", user);
+}, [user]);
 
-  apiFetch("user", {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-    .then((data) => {
-      //("✅ Data User dari API:", data.data);
-      //("🖼️ Path Gambar dari API:", data.data.images); // 🔥 Debugging gambar
 
-      if (data.success) {
-        localStorage.setItem("user_data", JSON.stringify(data.data));
-        setUser(data.data);
-        setFormData({
-          userid: data.data.userid,
-          username: data.data.username,
-          kdunit: data.data.kdunit,
-          kdsbidang: data.data.kdsbidang,
-          provinsi: String(data.data.kdlokasi),
-          kabkota: String(data.data.kdkabkota),
-          privilege: data.data.privilege,
-          fullName: data.data.fullName,
-          email: data.data.email,
-          images: data.data.images
-            ? `${import.meta.env.VITE_API_BASE_URL}/storage/profile_images/${data.data.images}`
-            : "/storage/profile_images/default.png",
-          is_active: data.data.is_active,
-        });
-      }
-    })
-    .catch((error) => console.error("❌ Error apiFetching user:", error));
-}, []);
+useEffect(() => {
+  if (user?.privilege !== undefined) {
+    localStorage.setItem("user_privilege", user.privilege);
+    setTimeout(() => window.dispatchEvent(new Event("storage")), 100);
+  }
+}, [user]);
+
+
+useEffect(() => {
+  if (user) {
+    setFormData({
+      userid: user.userid || "",
+      username: user.username || "",
+      kdunit: user.kdunit || "",
+      kdsbidang: user.kdsbidang || "",
+      provinsi: String(user.kdlokasi) || "",
+      kabkota: String(user.kdkabkota) || "",
+      privilege: user.privilege || "",
+      fullName: user.fullName || "",
+      email: user.email || "",
+      images: user.images
+        ? `${import.meta.env.VITE_API_BASE_URL}/storage/profile_images/${user.images}`
+        : "/storage/profile_images/default.png",
+      is_active: user.is_active || 1,
+    });
+  }
+}, [user]);
 
 
 
 // Ambil data provinsi
 useEffect(() => {
-  apiFetch("provinsi")
+  webFetch("provinsi")
 
     .then((data) => {
       if (data.success) {
@@ -150,13 +154,13 @@ useEffect(() => {
         setFields((prev) => ({ ...prev, provinsi: mappedProvinsi }));
       }
     })
-    .catch((error) => console.error("Error apiFetching provinsi:", error));
+    .catch((error) => console.error("Error webFetching provinsi:", error));
 }, []);
 
 
 // Ambil data privilege
 useEffect(() => {
-  apiFetch("privilege")
+  webFetch("privilege")
   
     .then((data) => {
       if (data.success) {
@@ -167,27 +171,31 @@ useEffect(() => {
         setFields((prev) => ({ ...prev, privilege: mappedPrivilege }));
       }
     })
-    .catch((error) => console.error("Error apiFetching privilege:", error));
+    .catch((error) => console.error("Error webFetching privilege:", error));
 }, []);
 
 // Fetch Kabupaten/Kota saat Provinsi berubah
 useEffect(() => {
-  if (formData.provinsi) {
-    apiFetch(`kabkota?kdlokasi=${formData.provinsi}`)
-      // .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          //("Data Kabupaten/Kota dari API:", data.data); // Debugging
+  const fetchKabkota = async () => {
+    if (!formData?.provinsi) return; // kalau kosong, keluarin saja
 
-          const mappedKabkota = data.data.map((kab) => ({
-            value: String(kab.KDKABKOTA), // Format string agar cocok
-            label: kab.NMKABKOTA,
-          }));
-          setFields((prev) => ({ ...prev, kabkota: mappedKabkota }));
-        }
-      });
-  }
-}, [formData.provinsi]);
+    try {
+      const data = await webFetch(`kabkota?kdlokasi=${formData.provinsi}`);
+      if (data.success) {
+        const mappedKabkota = data.data.map((kab) => ({
+          value: String(kab.KDKABKOTA),
+          label: kab.NMKABKOTA,
+        }));
+        setFields((prev) => ({ ...prev, kabkota: mappedKabkota }));
+      }
+    } catch (error) {
+      console.error("❌ Error fetch kabkota:", error);
+    }
+  };
+
+  fetchKabkota();
+}, [formData?.provinsi]);
+;
 
 
 const handleSelectChange = (selectedOption, fieldName) => {
@@ -216,9 +224,27 @@ const handleImageChange = (e) => {
 };
 
 
-const handleSave = () => {
-  setIsEditing(false); // Hanya menonaktifkan mode edit
+const handleSave = async () => {
+  try {
+    const res = await webFetch("update-profile", {
+      method: "POST",
+      body: JSON.stringify(formData),
+    });
+
+    if (res.success) {
+      toast.success("✅ Profil berhasil diperbarui!");
+      setIsEditing(false);
+    } else {
+      toast.error(`❌ Gagal update: ${res.message || "Terjadi kesalahan."}`);
+    }
+  } catch (err) {
+    console.error("❌ Gagal simpan profil:", err);
+    toast.error("❌ Gagal menyimpan profil.");
+  }
 };
+
+
+
 const handleImageUpload = () => {
   if (!imageSelected) {
     console.error("File tidak ditemukan!");
@@ -229,40 +255,75 @@ const handleImageUpload = () => {
   const formDataData = new FormData();
   formDataData.append("image", imageSelected);
 
-  apiFetch("/upload-profile-image", {
+  webFetch("/upload-profile-image", {
     method: "POST",
     body: formDataData,
-    headers: {
-      "Authorization": `Bearer ${localStorage.getItem("token")}`,
-    },
   })
-    .then((res) => res.json())
     .then((data) => {
       if (data.success) {
-        //("Upload berhasil:", data.imagePath);
-        setUploadMessage("✅ Upload berhasil!");
-
-        // 🔥 Langsung update gambar di UI tanpa refresh
+        toast.success("✅ Upload berhasil!");
         setFormData((prev) => ({ ...prev, images: data.imagePath }));
-
-        // Hapus file yang dipilih setelah upload berhasil
         setImageSelected(null);
       } else {
-        console.error("Upload gagal:", data.message);
-        setUploadMessage("❌ Gagal mengupload. Coba lagi.");
+        toast.error("❌ Upload gagal: " + (data.message || "Terjadi kesalahan."));
       }
     })
-    .catch((error) => {
-      console.error("Error uploading image:", error);
-      setUploadMessage("❌ Gagal mengupload. Coba lagi.");
+    .catch(async (error) => {
+      if (error instanceof Response && error.status === 422) {
+        const errData = await error.json();
+        const validationErrors = errData.errors;
+  
+        if (validationErrors && validationErrors.image) {
+          toast.error("❌ " + validationErrors.image.join(" "));
+          setUploadMessage(validationErrors.image.join(" "));
+        } else {
+          toast.error("❌ Upload gagal karena data tidak valid.");
+          setUploadMessage("❌ Upload gagal karena data tidak valid.");
+        }
+      } else {
+        toast.error("❌ Gagal mengupload gambar.");
+        console.error("❌ Error uploading image:", error);
+        setUploadMessage("❌ Gagal mengupload. Coba lagi.");
+      }
     });
-};
+};  
 
+const handleLogout = async () => {
+  try {
+    // 📨 Kirim request logout ke backend
+    await webFetch("logout", { method: "POST" });
+  } catch (err) {
+    console.error("❌ Logout error (diabaikan):", err);
+    // Tetap lanjut walaupun gagal logout di server
+  }
 
-const handleLogout = () => {
-  localStorage.removeItem("token");
-  navigate("/");
-  window.location.reload();
+  // ✅ Tampilkan toast logout langsung (tidak ditunda)
+  toast.success("✅ Logout sukses!", {
+    autoClose: 2000,
+    style: {
+      background: "#1e293b",
+      color: "#fff",
+      borderRadius: "8px",
+      padding: "14px 20px",
+      fontWeight: "600",
+    },
+    iconTheme: {
+      primary: "#10b981",
+      secondary: "#fff",
+    },
+  });
+
+  // 🔐 Delay sejenak agar toast tampil dulu
+  setTimeout(() => {
+    // 🔥 Force redirect (anti gagal) ke login + query untuk toast selamat datang
+    window.location.href = "/login?logout=1";
+
+    // 🧹 Bersihkan cookie & storage
+    document.cookie = 'XSRF-TOKEN=; Max-Age=0; path=/; domain=.sipdjd-laravel.test; secure';
+    document.cookie = 'laravel_session=; Max-Age=0; path=/; domain=.sipdjd-laravel.test; secure';
+    localStorage.clear();
+    sessionStorage.clear();
+  }, 1000); // kasih jeda 1 detik supaya toast keburu muncul
 };
 
 
@@ -373,14 +434,12 @@ const announcements = [
 
                 {/* Tombol Logout */}
                 <button
-                  className="flex items-center px-4 py-2 w-full text-red-600 hover:bg-red-100 rounded-md text-left"
-                  onClick={() => {
-                    localStorage.removeItem("token");
-                    window.location.reload();
-                  }}
-                >
-                  <FiLogOut className="mr-3 text-red-500" /> Logout
-                </button>
+                    className="flex items-center px-4 py-2 w-full text-red-600 hover:bg-red-100 rounded-md text-left"
+                    onClick={handleLogout}
+                  >
+                    <FiLogOut className="mr-3 text-red-500" /> Logout
+                  </button>
+
               </div>
             )}
           </div>
@@ -433,13 +492,15 @@ const announcements = [
          {/* Email (Tidak bisa diubah) */}
          <div>
            <label className="font-medium">E-Mail:</label>
-           <input
-             type="email"
-             name="email"
-             className="w-full p-2 border rounded-lg"
-             value={formData.email || ""}
-             readOnly
-           />
+                      <input
+              type="email"
+              name="email"
+              className="w-full p-2 border rounded-lg"
+              value={formData.email || ""}
+              onChange={handleChange}
+              readOnly={!isEditing}
+            />
+
          </div>
 
       {/* Provinsi */}

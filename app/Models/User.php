@@ -16,7 +16,7 @@ class User extends Authenticatable
     protected $primaryKey = 'userid';
     protected $fillable = [
         'username', 'kdunit', 'kdsbidang', 'kdlokasi', 'kdkabkota',
-        'privilege', 'images', 'fullName', 'email', 'is_active'
+        'privilege', 'images', 'fullName', 'email', 'is_active', 'sub_privilege'
     ];
     protected $hidden = ['password'];
 
@@ -39,11 +39,6 @@ class User extends Authenticatable
                       ->limit(1);
             });
     }
-    
-    
-    
-    
-    
-    
+       
     
 }

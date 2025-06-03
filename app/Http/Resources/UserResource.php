@@ -23,6 +23,8 @@ class UserResource extends JsonResource
             'kdsbidang' => $this->kdsbidang,
             'kdlokasi' => $this->kdlokasi,
             'kdkabkota' => $this->kdkabkota,
+            'sub_privilege' => $this->sub_privilege,
+            'is_active' => $this->is_active,
             'privilege' => [
                 'id' => $this->privilege->kdprivilege ?? null,
                 'name' => $this->privilege->nmprivilege ?? 'Tidak ada'

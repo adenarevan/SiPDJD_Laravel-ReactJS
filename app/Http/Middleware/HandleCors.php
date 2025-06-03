@@ -12,10 +12,12 @@ class HandleCors
     {
         $response = $next($request);
 
-        $response->headers->set('Access-Control-Allow-Origin', '*');
-        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        // Ganti URL di bawah dengan URL React kamu (default: Vite)
+        $origin = 'https://react.sipdjd-laravel.test/';
 
-        return $response;
+        return $response->header('Access-Control-Allow-Origin', $origin)
+                        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                        ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With, X-CSRF-TOKEN')
+                        ->header('Access-Control-Allow-Credentials', 'true');
     }
 }

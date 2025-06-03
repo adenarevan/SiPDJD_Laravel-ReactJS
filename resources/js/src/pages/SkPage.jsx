@@ -5,6 +5,7 @@ import LihatSk from "../components/sk/LihatSk";
 import UploadSk from "../components/sk/UploadSk";
 import DownloadTemplate from "../components/sk/DownloadTemplate";
 
+
 export default function SkPage() {
   const [activeTab, setActiveTab] = useState("lihat");
   const [selectedProvinsi, setSelectedProvinsi] = useState(null);
@@ -12,8 +13,8 @@ export default function SkPage() {
 
   return (
     <div className="flex flex-col min-h-full w-full px-4 pb-6">
-<div className="w-full px-4 md:px-10  py-6 text-gray-800">  
-   
+    <div className="w-full px-4 md:px-10  py-6 text-gray-800">  
+      
 
         <div className="bg-white shadow-md rounded-lg p-6 mb-6">
           <h1 className="text-3xl font-bold text-gray-800">Halaman SK</h1>
@@ -52,9 +53,16 @@ export default function SkPage() {
                 <LihatSk selectedProvinsi={selectedProvinsi} selectedKabupaten={selectedKabupaten} />
               )}
               {activeTab === "upload" && (
-                <UploadSk provinsi={selectedProvinsi} kabupaten={selectedKabupaten} />
+                <UploadSk selectedProvinsi={selectedProvinsi} selectedKabupaten={selectedKabupaten} />
+
               )}
-              {activeTab === "template" && <DownloadTemplate />}
+              {activeTab === "template" && (
+                  <DownloadTemplate
+                    selectedProvinsi={selectedProvinsi}
+                    selectedKabupaten={selectedKabupaten}
+                  />
+                )}
+
             </div>
           </div>
         )}

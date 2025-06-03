@@ -18,7 +18,7 @@ return [
     |
     */
 
-    'driver' => env('SESSION_DRIVER', 'file'),
+      'driver' => env('SESSION_DRIVER', 'cookie'),
 
     /*
     |--------------------------------------------------------------------------
@@ -31,9 +31,9 @@ return [
     |
     */
 
-    'lifetime' => env('SESSION_LIFETIME', 60),
+    'lifetime' => env('SESSION_LIFETIME', 120),
 
-    'expire_on_close' => true,
+    'expire_on_close' => false,
 
     /*
     |--------------------------------------------------------------------------
@@ -46,7 +46,7 @@ return [
     |
     */
 
-    'encrypt' => false,
+    'encrypt' => true,
 
     /*
     |--------------------------------------------------------------------------
@@ -126,11 +126,7 @@ return [
     |
     */
 
-    'cookie' => env(
-        'SESSION_COOKIE',
-        Str::slug(env('APP_NAME', 'laravel'), '_').'_session'
-    ),
-
+'cookie' => env('SESSION_COOKIE', 'sipdjd_laravel_session'),
     /*
     |--------------------------------------------------------------------------
     | Session Cookie Path
@@ -155,7 +151,7 @@ return [
     |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+        'domain' => env('SESSION_DOMAIN', '.sipdjd-laravel.test'),
 
     /*
     |--------------------------------------------------------------------------
@@ -196,7 +192,7 @@ return [
     |
     */
 
-    'same_site' => 'lax',
+    'same_site' => 'none',
 
     /*
     |--------------------------------------------------------------------------

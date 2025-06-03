@@ -21,6 +21,8 @@ class AuthController extends Controller
     {
         $this->userService = $userService;
     }
+
+    
     public function login(Request $request)
     {
         // Validasi input
@@ -29,6 +31,8 @@ class AuthController extends Controller
             'password' => 'required',
             'cf-turnstile-response' => 'required'
         ]);
+
+   
     
         if ($validator->fails()) {
             return response()->json(['error' => $validator->errors()], 400);
@@ -50,7 +54,11 @@ class AuthController extends Controller
             return response()->json(['error' => 'Akun belum diaktivasi.'], 403);
         }
     
-        // Simpan data user ke session
+        // Simpan user ke session auth Laravel
+        Auth::login($user); // 🔐 pakai built-in login session Laravel
+        $request->session()->regenerate(); // Hindari session fixation
+    
+        // Simpan data tambahan ke session
         $sessionData = [
             'user' => $user->username,
             'kdunit' => $user->kdunit,
@@ -69,19 +77,15 @@ class AuthController extends Controller
         ];
     
         session()->put('user', $sessionData);
-        session()->save();
-        session()->regenerate();
-    
-    
-        // Generate token untuk sesi user
-        $token = $user->createToken('auth_token')->plainTextToken;
     
         return response()->json([
             'message' => 'Login berhasil',
-            'token' => $token,
-            'user' => session('user') // Hanya ambil data user dari session, bukan semua session
-        ]);
+            'user' => $sessionData
+        ], 200); // ⬅️ pastikan status code 200
+        
     }
+    
+
     
     private function verifyCloudflareTurnstile($cf_response)
 {

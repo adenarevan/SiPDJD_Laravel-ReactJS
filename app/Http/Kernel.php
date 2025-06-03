@@ -16,7 +16,7 @@ class Kernel extends HttpKernel
     protected $middleware = [
         // \App\Http\Middleware\TrustHosts::class,
         \App\Http\Middleware\TrustProxies::class,
-        \Illuminate\Http\Middleware\HandleCors::class,
+        \Illuminate\Http\Middleware\HandleCors::class, // ✅ Hanya di sini (global)
         \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
         \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
         \App\Http\Middleware\TrimStrings::class,
@@ -29,26 +29,23 @@ class Kernel extends HttpKernel
      * @var array<string, array<int, class-string|string>>
      */
     protected $middlewareGroups = [
-        'web' => [
-       
-            \App\Http\Middleware\EncryptCookies::class,
-            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-            \Illuminate\Session\Middleware\StartSession::class,
-            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-            \App\Http\Middleware\VerifyCsrfToken::class,
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
-         //   \App\Http\Middleware\SetDatabaseConnection::class, // Middleware untuk pilih database
-        ],
+    'web' => [
+        \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, // ✅ Wajib di urutan pertama (Sanctum)
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class, // ✅ Session harus sebelum Dynamic DB
+        \App\Http\Middleware\UseDynamicDatabase::class,     // ✅ Dynamic DB setelah Session
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+        \Illuminate\Routing\Middleware\SubstituteBindings::class,
+    ],
 
         'api' => [
-            \App\Http\Middleware\UseDynamicDatabase::class, // tambahkan ini
-            'throttle:api',
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
-         
         ],
     ];
+
 
     /**
      * The application's middleware aliases.
@@ -69,6 +66,10 @@ class Kernel extends HttpKernel
         'signed' => \App\Http\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
-        'dynamicdb' => \App\Http\Middleware\UseDynamicDatabase::class, // ✅ Tambah ini
+        'dynamicdb' => \App\Http\Middleware\UseDynamicDatabase::class, // ✅ Gunakan sebagai alias untuk route tertentu
+    ];
+
+    protected $routeMiddleware = [
+        'log.requests' => \App\Http\Middleware\LogRequests::class, // ✅ Hanya ini
     ];
 }

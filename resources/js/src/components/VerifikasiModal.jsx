@@ -3,13 +3,15 @@ import { createPortal } from "react-dom";
 import { FiX, FiChevronDown, FiCheckCircle, FiCalendar, FiArrowRight, FiSearch } from "react-icons/fi";
 import { FaCheckCircle, FaRoad, FaGlobeAsia, FaTree } from "react-icons/fa";
 import { getCookie } from "../utils/cookies";
-
+import { webFetch } from "@/utils/webFetch";
+import { useAuth } from "@/context/AuthContext"; // pastikan di-import
+import { toast } from "react-toastify";
 
 // ✅ Komponen MenuCard (Kartu untuk setiap menu)
   const MenuCard = ({ icon, title, description, color, years, menuId, isSelected, onSelect, onYearChange }) => {
   const [selectedYear, setSelectedYear] = useState(() => localStorage.getItem(`selected_year_${menuId}`) || "2022");
   const [showDropdown, setShowDropdown] = useState(false);
-
+  const { user, authChecked } = useAuth(); // ✅ Tambahkan ini
   // ✅ Ambil tahun dari localStorage setiap kali modal dibuka ulang
   useEffect(() => {
     if (isSelected) {
@@ -20,51 +22,94 @@ import { getCookie } from "../utils/cookies";
     }
   }, [isSelected]);
 
-  const csrfToken = getCookie('XSRF-TOKEN');
 
-const handleYearChange = async (year) => {
-  if (year === selectedYear) return;
 
-  try {
-    // Ambil CSRF cookie
-    const csrfRes = await fetch("http://localhost:8000/sanctum/csrf-cookie", {
-      credentials: "include",
-    });
-    if (!csrfRes.ok) throw new Error("Gagal mendapatkan CSRF cookie");
+  
+  const handleYearChange = async (year) => {
 
-    const csrfToken = getCookie('XSRF-TOKEN');
 
-    // Kirim request set-year
-    const response = await fetch("http://localhost:8000/set-year", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "X-XSRF-TOKEN": csrfToken,
-      },
-      credentials: "include",
-      body: JSON.stringify({ menu_id: menuId, year }),
-    });
+    
+    if (typeof window === "undefined") return; // SSR guard (optional)
 
-    if (!response.ok) {
-      throw new Error("Gagal menyimpan tahun ke server");
-    }
-
-    // Kalau sukses, baru update local state dan storage
-    setSelectedYear(year);
-    localStorage.setItem(`selected_year_${menuId}`, year);
-    window.dispatchEvent(new Event("year_update"));
-
-    const result = await response.json();
-    console.log("Tahun berhasil disimpan:", result);
-
-    onYearChange(menuId, year);
-    window.location.reload();
-  } catch (error) {
-    console.error("Error menyimpan tahun:", error);
+if (!authChecked || !user) {
+ if (isToastReady) {
+    toast.error("⏳ Mohon tunggu, sesi belum siap.");
   }
-};
+  return;
+}
 
+  
+    if (year === selectedYear) return;
+  
+  // Tambahkan delay sebelum toast.loading() agar tidak nabrak initial render
+await new Promise((r) => setTimeout(r, 100));
+let loadingToast = null;
+
+await new Promise((r) => {
+  setTimeout(() => {
+    loadingToast = toast.loading("⏳ Menyimpan tahun...");
+    r();
+  }, 0);
+});
+
+    let confirmed = false;
+  
+    try {
+      const result = await webFetch("set-year", {
+        method: "POST",
+        body: JSON.stringify({ menu_id: menuId, year }),
+      });
+  
+      await new Promise((r) => setTimeout(r, 300)); // ✋ beri delay agar Laravel sempat simpan session
+
+      
+      let maxRetry = 10;
+      const maxTimeoutMs = 3000;
+      const startTime = Date.now();
+  
+      while (Date.now() - startTime < maxTimeoutMs && maxRetry-- > 0) {
+        const confirm = await webFetch(`get-year/${menuId}`);
+        console.log("🔁 Cek ulang tahun:", confirm?.selected_year); // Log debug
+  
+        if (confirm?.selected_year === year) {
+          confirmed = true;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 200));
+      }
+  
+      if (!confirmed) {
+        toast.update(loadingToast, {
+          render: "❌ Gagal menyimpan sesi tahun, silakan coba lagi.",
+          type: "error",
+          isLoading: false,
+          autoClose: 3000,
+        });
+        console.warn("❌ Gagal konfirmasi tahun. Expected:", year, "Received:", confirm?.selected_year);
+        return;
+      }
+  
+      setSelectedYear(year);
+      localStorage.setItem(`selected_year_${menuId}`, year);
+      window.dispatchEvent(new Event("year_update"));
+      onYearChange(menuId, year);
+  
+      toast.update(loadingToast, {
+        render: `✅ Tahun ${year} berhasil disimpan`,
+        type: "success",
+        isLoading: false,
+        autoClose: 3000,
+      });
+    } catch (error) {
+      console.error("❌ Error:", error);
+      toast.update(loadingToast, {
+        render: "❌ Terjadi error saat menyimpan tahun.",
+        type: "error",
+        isLoading: false,
+        autoClose: 3000,
+      });
+    }
+  };
   
   return (
     <div
@@ -136,7 +181,19 @@ const handleYearChange = async (year) => {
 export default function PremiumVerificationModal({ isOpen, onClose }) {
   const [selectedMenuId, setSelectedMenuId] = useState(() => localStorage.getItem("selected_menu") || "");
   const [searchQuery, setSearchQuery] = useState("");
+  const { user, authChecked } = useAuth();
+const [isToastReady, setIsToastReady] = useState(false);
 
+  // 🛡️ Hindari render modal sebelum user login dicek atau belum login
+  if (!authChecked || !user) return null;
+
+  useEffect(() => {
+  if (authChecked && user) {
+    setTimeout(() => {
+      setIsToastReady(true);
+    }, 100); // beri waktu agar ToastContainer benar-benar siap
+  }
+}, [authChecked, user]);
   // ✅ Ambil data dari localStorage setiap kali modal dibuka ulang
   useEffect(() => {
     if (isOpen) {

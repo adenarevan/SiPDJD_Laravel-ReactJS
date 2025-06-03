@@ -30,6 +30,7 @@ class UserRepository
                 'usr.privilege',
                 'priv.nmprivilege',
                 'usr.images',
+                'usr.sub_privilege',
                 'usr.fullName',
                 'usr.email',
                 'usr.is_active'

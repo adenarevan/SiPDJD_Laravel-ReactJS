@@ -1,15 +1,16 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:8000"; // 🚀 Jangan pakai "/api"
+// Ambil base URL dari .env (atau fallback ke HTTPS Laravel)
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://sipdjd-laravel.test";
 
 const axiosInstance = axios.create({
-  baseURL: API_BASE_URL, // ✅ Harus tanpa "/api" agar bisa akses "/sanctum/csrf-cookie"
+  baseURL: API_BASE_URL.replace(/\/+$/, ''), // ✅ hapus slash akhir
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  withCredentials: true,
+  withCredentials: true, // ✅ penting agar cookie Laravel dikirim
 });
 
 export default axiosInstance;
-

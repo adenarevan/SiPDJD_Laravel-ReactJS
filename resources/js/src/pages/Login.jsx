@@ -1,3 +1,33 @@
+/**
+ * 🧠 LOGIN PAGE (React + Tailwind + Laravel Sanctum + Cloudflare Turnstile)
+ *
+ * 🔐 FUNGSI UTAMA:
+ * - Menyediakan form login (username, password)
+ * - Menggunakan Cloudflare Turnstile untuk verifikasi anti-bot
+ * - Mengambil CSRF token & login via Laravel Sanctum (session-based)
+ * - Menyimpan data user ke context global `AuthContext`
+ * - Redirect otomatis ke /dashboard jika login sukses
+ *
+ * 💡 POIN UTAMA:
+ * - `useAuth()` → mengakses & menyimpan data user setelah login
+ * - `webFetch()` → helper fetch dengan CSRF + session
+ * - `turnstileRef` → untuk render captcha dari Cloudflare
+ * - `useEffect()` pertama → handle load & render widget Turnstile
+ * - `handleSubmit()` → urutan login:
+ *    1. validasi input + token turnstile
+ *    2. ambil CSRF
+ *    3. POST login
+ *    4. ambil user session (`/me`)
+ *    5. simpan ke context dan redirect
+ * - `ToastContainer` + `toast.success/error()` → notifikasi sukses/gagal
+ * - `Swiper` → slideshow fullscreen untuk tampilan estetis
+ *
+ * ⚠️ Jangan lupa:
+ * - Pastikan domain `.test` punya SSL jika pakai session-based auth
+ * - Turnstile sitekey harus sesuai dengan yang diregistrasi di Cloudflare
+ */
+
+
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Lock, User } from "lucide-react";
@@ -9,7 +39,12 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Autoplay } from "swiper/modules";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import axiosInstance from "../utils/axiosInstance";
+import { webFetch } from "@/utils/webFetch";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useLocation } from "react-router-dom";
+
+
 
 const slides = [
   "https://images.unsplash.com/photo-1516321497487-e288fb19713f?w=1920&h=1080&fit=crop",
@@ -18,6 +53,8 @@ const slides = [
 ];
 
 export default function Login() {
+  const location = useLocation();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [cfResponse, setCfResponse] = useState("");
@@ -25,6 +62,31 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const turnstileRef = useRef(null);
   const turnstileInitialized = useRef(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+const { user, authChecked, setUser } = useAuth();
+
+
+  const navigate = useNavigate(); // ← tambahkan ini juga
+
+  const getXsrfFromCookie = () => {
+    const cookie = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("XSRF-TOKEN="));
+    return cookie ? decodeURIComponent(cookie.split("=")[1]) : null;
+  };
+
+
+
+
+useEffect(() => {
+  const params = new URLSearchParams(location.search);
+  if (params.get("logout") === "1") {
+    toast.success("✅ Logout sukses!");
+    // opsional: hapus ?logout=1 dari URL
+    window.history.replaceState({}, document.title, "/login");
+  }
+}, [location.search]);
 
   useEffect(() => {
     // Define global callback functions for Turnstile
@@ -109,94 +171,103 @@ export default function Login() {
     }
   };
 
-
-const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  if (!username || !password) {
-    toast.error("Username dan password tidak boleh kosong");
-    return;
-  }
-
-  if (!cfResponse) {
-    toast.error("❌ Verifikasi Cloudflare belum selesai, silakan coba lagi.");
-    resetTurnstile();
-    return;
-  }
-
-  setIsLoading(true);
-  setError("");
-
-  await axiosInstance.get("/sanctum/csrf-cookie"); // Wajib sebelum login
-
-  try {
-    // 🔍 WAJIB! Panggil CSRF cookie sebelum login
-    await axiosInstance.get("/sanctum/csrf-cookie"); // ✅ Pastikan ini dipanggil sebelum login
-
-    // 🔍 Ambil token dari cookie browser
-    const xsrfToken = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("XSRF-TOKEN="))
-        ?.split("=")[1];
-
-    // 🔍 Kirim request login dengan CSRF token di header
-    const response = await axiosInstance.post(
-        "/api/login", // ✅ HARUS pakai "/api/login" agar baseURL otomatis ditambahkan
-        {
-            username,
-            password,
-            "cf-turnstile-response": cfResponse
-        },
-        {
-            headers: {
-                "X-XSRF-TOKEN": decodeURIComponent(xsrfToken), // 🔥 PENTING!
-            }
-        }
-    );
-    
-
-    // Store auth data
-    localStorage.setItem("token", response.data.token);
-    localStorage.setItem("user", JSON.stringify(response.data.user));
-
-    toast.success(`✅ Selamat datang, ${response.data.user.fullName}!`);
-
-    setTimeout(() => {
-      window.location.href = "/dashboard";
-    }, 2000);
-
-  } catch (err) {
-    console.error("❌ Login error:", err);
-
-    // Tangkap error dari backend
-    if (err.response) {
-      console.log("🛑 Respon dari backend:", err.response.data);
-      console.error("❌ Login error:", error.response?.status, error.response?.data);
-      // Jika backend mengembalikan error, tampilkan di UI
-      if (err.response.status === 403) {
-        setError("⚠️ Verifikasi Cloudflare gagal. Silakan coba lagi.");
-        toast.error("⚠️ Verifikasi Cloudflare gagal.");
-      } else if (err.response.status === 401) {
-        setError("❌ Username atau password salah.");
-        toast.error("❌ Username atau password salah.");
-      } else {
-        setError(err.response.data.error || "Terjadi kesalahan pada server.");
-        toast.error(err.response.data.error || "Terjadi kesalahan pada server.");
-      }
-    } else {
-      setError("🚨 Tidak dapat terhubung ke server.");
-      toast.error("🚨 Tidak dapat terhubung ke server.");
+    useEffect(() => {
+    if (authChecked && user) {
+      navigate("/dashboard", { replace: true });
     }
+  }, [authChecked, user]);
 
-    resetTurnstile();
-  } finally {
-    setIsLoading(false);
-  }
-};
+  if (!authChecked) return null;
+  if (authChecked && user) return null;
+  
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    console.log("🚀 Submit diklik");
+  
+    if (!username || !password) {
+      toast.error("Username dan password tidak boleh kosong");
+      return;
+    }
+  
+    if (!cfResponse) {
+      toast.error("❌ Verifikasi Cloudflare belum selesai, silakan coba lagi.");
+      resetTurnstile();
+      return;
+    }
+  
+    setIsLoading(true);
+    setError("");
+  
+    try {
+      // console.log("🔐 Ambil CSRF cookie");
+      // await webFetch("sanctum/csrf-cookie", { forceFetchCsrf: true }); // ⬅️ Tambahkan ini!
+    
+    
+      console.log("📨 Kirim login request");
+      const res = await webFetch("login", {
+        method: "POST",
+        body: JSON.stringify({
+          username,
+          password,
+          "cf-turnstile-response": cfResponse,
+        }),
+      });
+  
+      console.log("✅ Login berhasil:", res);
+  
+      const user = res?.user;
+      if (!user?.fullName) {
+        throw new Error("Login gagal: Data user tidak ditemukan.");
+      }
+  
+      toast.success(`✅ Selamat datang, ${user.fullName}!`);
+  
+      // 🔥 Setelah login, cek session dengan /me
+      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log("🔄 Cek session dengan /me...");
+      const me = await webFetch("me");
+      setUser(me.user); // ✅ Ini hasil session yang valid dari backend
+      
+
+      // 🚀 Arahkan ke dashboard
+      navigate("/dashboard");
+  
+    } catch (err) {
+      console.error("🧨 ERROR LOGIN:", err);
+  
+      // Clear cookie kalau error
+      document.cookie = 'XSRF-TOKEN=; Max-Age=0; path=/; domain=.sipdjd-laravel.test; secure';
+      document.cookie = 'laravel_session=; Max-Age=0; path=/; domain=.sipdjd-laravel.test; secure';
+  
+      let message = "🚨 Terjadi kesalahan saat login.";
+  
+      const status = err?.status || err?.response?.status;
+      if (status === 404) message = "❌ Endpoint login tidak ditemukan (404).";
+      else if (status === 403) message = "⚠️ Verifikasi Cloudflare gagal.";
+      else if (status === 401) message = "❌ Username atau password salah.";
+      
+      try {
+        const response = err instanceof Response ? err : err.response;
+        const data = await response.json();
+        if (data?.message) message = `❌ ${data.message}`;
+      } catch (_) {
+        console.warn("⚠️ Gagal parsing error response JSON");
+      }
+  
+      setError(message);
+      toast.error(message);
+      resetTurnstile();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+
+  
   return (
     <div className="flex h-screen w-screen bg-gradient-to-br from-gray-950 to-gray-900 text-white font-sans overflow-hidden">
-      <ToastContainer 
+      {/* <ToastContainer 
         position="top-right"
         autoClose={3000}
         hideProgressBar={false}
@@ -206,8 +277,8 @@ const handleSubmit = async (e) => {
         pauseOnFocusLoss
         draggable
         pauseOnHover
-        theme="dark"
-      />
+        theme="light" // ✅ Toast jadi background putih
+      /> */}
       
       {/* Left side - image carousel (hidden on mobile) */}
       <div className="hidden lg:flex w-1/2 items-center justify-center overflow-hidden shadow-xl relative">
